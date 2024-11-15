@@ -12,3 +12,6 @@ __pycache__/
 # Output directories
 output/
 logs/
+
+# ignore large model artifacts
+*.safetensors

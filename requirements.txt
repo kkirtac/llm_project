@@ -4,3 +4,8 @@ huggingface-hub==0.26.2
 pytest==8.3.3
 streamlit==1.40.1
 transformers==4.46.2
+###
+scikit-learn==1.5.2
+evaluate==0.4.3
+###
+sacrebleu==2.4.3
