@@ -1,12 +1,10 @@
 import numpy as np
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback
+from transformers import GemmaTokenizer, AutoModelForCausalLM, Trainer, TrainingArguments, EarlyStoppingCallback
 from transformers import AdamW, get_cosine_schedule_with_warmup
 from datasets import load_dataset
 
-# Load the tokenizer and model
-model_name = "google/codegemma-7b"  # Update model
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+tokenizer = GemmaTokenizer.from_pretrained("google/codegemma-7b")
+model = AutoModelForCausalLM.from_pretrained("google/codegemma-7b")
 
 # Load and preprocess the dataset
 dataset = load_dataset("json", data_files="data.json")
