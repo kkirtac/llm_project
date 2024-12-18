@@ -1,8 +1,16 @@
 import numpy as np
 import torch
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback
+import random
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, Trainer, TrainingArguments, EarlyStoppingCallback, set_seed
 from peft import get_peft_model, LoraConfig, TaskType
 from datasets import load_dataset
+
+# Set seed for reproducibility
+seed = 42
+np.random.seed(seed)
+torch.manual_seed(seed)
+random.seed(seed)
+set_seed(seed)
 
 # Load the tokenizer and model
 model_name = "google/flan-t5-base"
@@ -14,17 +22,27 @@ lora_config = LoraConfig(
     task_type=TaskType.SEQ_2_SEQ_LM,
     r=8,
     lora_alpha=16,
-    lora_dropout=0.1
+    lora_dropout=0.1,
+    target_modules=["q", "v"]
 )
 model = get_peft_model(model, lora_config)
 
-# Ensure LoRA parameters are trainable
-for param in model.parameters():
-    param.requires_grad = True
+# Ensure the model is in training mode
+model.train()
+
+# Set requires_grad for the last two layers
+for name, param in model.named_parameters():
+    if "encoder.block.10" in name or "encoder.block.11" in name or "decoder.block.10" in name or "decoder.block.11" in name:
+        param.requires_grad = True
+    else:
+        param.requires_grad = False
+
+trainable_params = [name for name, param in model.named_parameters() if param.requires_grad]
+print("Trainable parameters:", trainable_params)
 
 # Load and preprocess dataset
 dataset = load_dataset("json", data_files="data.json")  # Update path to your dataset
-dataset = dataset['train'].train_test_split(test_size=0.2, seed=42)
+dataset = dataset['train'].train_test_split(test_size=0.2, seed=seed)
 train_dataset = dataset['train']
 val_dataset = dataset['test']
 
@@ -41,18 +59,19 @@ val_dataset = val_dataset.map(tokenize_function, batched=True)
 training_args = TrainingArguments(
     output_dir="./output",
     num_train_epochs=15,
-    per_device_train_batch_size=1,        # Small batch size for limited memory
-    gradient_accumulation_steps=8,        # Accumulate to simulate larger batch size
+    per_device_train_batch_size=2,        # Small batch size for limited memory
+    gradient_accumulation_steps=4,        # Accumulate to simulate larger batch size
     fp16=True,                            # Mixed precision for memory saving
     eval_strategy="epoch",
     save_strategy="epoch",
     load_best_model_at_end=True,
-    gradient_checkpointing=True,          # Enable gradient checkpointing
+    # gradient_checkpointing=True,          # Enable gradient checkpointing
     logging_steps=10,                     # Log regularly to monitor progress
     save_total_limit=1,                   # Limit saved models to save disk space
     logging_dir="./logs",
     metric_for_best_model="eval_loss",    # Choose the best model based on eval loss
-    greater_is_better=False  
+    greater_is_better=False,
+    seed=seed
 )
 
 # Custom metric calculation function
